@@ -21,7 +21,30 @@ const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next
 const tokenFor = (user) => jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "8h" });
 const own = (Model, id, userId) => Model.findOne({ _id: id, owner: userId });
 
+// A warm Vercel function reuses its module/global state. Reusing this promise
+// prevents each request from opening another MongoDB connection.
+let connectionPromise = global.casemateMongoConnection || null;
+function connectDatabase() {
+  if (mongoose.connection.readyState === 1) return Promise.resolve(mongoose.connection);
+  if (!process.env.MONGO_URI) return Promise.reject(new Error("MONGO_URI must be set."));
+
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000,
+    }).catch((error) => {
+      connectionPromise = null;
+      global.casemateMongoConnection = null;
+      throw error;
+    });
+    global.casemateMongoConnection = connectionPromise;
+  }
+  return connectionPromise;
+}
+
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.use((req, _res, next) => {
+  connectDatabase().then(() => next()).catch(next);
+});
 app.post("/api/auth/register", asyncRoute(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password || password.length < 8) return res.status(400).json({ message: "Name, email, and an 8-character password are required." });
@@ -61,11 +84,19 @@ app.post("/api/cases/:caseId/documents", auth, upload.single("file"), asyncRoute
 app.get("/api/cases/:caseId/documents", auth, asyncRoute(async (req, res) => res.json(await Document.find({ case: req.params.caseId, owner: req.user.id }).sort({ createdAt: -1 }))));
 
 app.use((err, _req, res, _next) => { console.error(err); res.status(err.status || 500).json({ message: err.message || "Something went wrong." }); });
-if (!process.env.MONGO_URI || !process.env.JWT_SECRET) throw new Error("MONGO_URI and JWT_SECRET must be set in .env");
-mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 })
-  .then(() => app.listen(process.env.PORT || 5000, () => console.log("CaseMate API running on port 5000")))
-  .catch((err) => {
-    console.error("Could not connect to MongoDB:", err.message);
-    console.error("Check that the Atlas cluster is running and that your current IP is in Network Access.");
+
+module.exports = app;
+
+if (require.main === module) {
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET must be set in .env");
     process.exit(1);
-  });
+  }
+  connectDatabase()
+    .then(() => app.listen(process.env.PORT || 5000, () => console.log("CaseMate API running on port 5000")))
+    .catch((err) => {
+      console.error("Could not connect to MongoDB:", err.message);
+      console.error("Check that the Atlas cluster is running and that your current IP is in Network Access.");
+      process.exit(1);
+    });
+}
