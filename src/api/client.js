@@ -1,0 +1,10 @@
+import axios from "axios";
+
+const api = axios.create({ baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api" });
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem("casemate_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+export const messageFrom = (error) => error.response?.data?.message || "Unable to complete the request. Please try again.";
+export default api;

@@ -1,0 +1,228 @@
+.client-panel {
+  padding: 1rem 1rem 1.25rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.client-panel--focused {
+  min-height: min(720px, calc(100vh - 7rem));
+  padding: 1.5rem;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-layer);
+}
+
+.client-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.client-panel h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.client-panel-meta {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.client-panel-lede {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.client-panel .add-inline-btn {
+  min-height: 2.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.client-panel .add-inline-btn:hover {
+  background: rgba(107, 140, 255, 0.32);
+}
+
+.client-form {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.client-form input,
+.client-form button {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.25rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.client-form input {
+  padding: 0.42rem 0.55rem;
+}
+
+.client-form input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.client-form button {
+  background: var(--accent-muted);
+  cursor: pointer;
+}
+
+.client-form button:hover {
+  background: rgba(107, 140, 255, 0.32);
+}
+
+.client-form .form-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.client-form .secondary-btn {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.client-form .secondary-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.client-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.client-item {
+  display: block;
+  min-width: 0;
+}
+
+.client-delete {
+  margin-top: 0.7rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  line-height: 0;
+}
+
+.client-delete input {
+  accent-color: var(--danger);
+  cursor: pointer;
+}
+
+.client-row {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: inherit;
+  font: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.client-panel--focused .client-row {
+  padding: 0.8rem 0.9rem;
+}
+
+.client-panel--focused .client-name {
+  font-size: 1rem;
+}
+
+.client-panel--focused .client-matter {
+  font-size: 0.86rem;
+}
+
+.client-row:hover {
+  background: var(--bg-overlay);
+  border-color: var(--border-subtle);
+}
+
+.client-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.client-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.client-matter {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.client-detail-line {
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.client-updated {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  padding-top: 2px;
+}
+
+.client-actions { display: flex; gap: .35rem; }
+.client-actions button, .case-row button, .case-add { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); padding: .28rem .4rem; cursor: pointer; font: inherit; font-size: .72rem; }
+.case-list { margin: .35rem 0 .1rem; display: grid; gap: .3rem; }
+.case-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .35rem .45rem; border-left: 2px solid var(--accent); background: var(--bg-overlay); font-size: .76rem; }
+.case-row small { color: var(--text-tertiary); margin-left: .25rem; }
+.case-add { justify-self: start; }
+.client-form textarea, .client-form select { width: 100%; min-height: 2.25rem; padding: .42rem .55rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--text-primary); font: inherit; font-size: .82rem; }
+
+@media (min-width: 900px) {
+  .client-panel:not(.client-panel--focused) {
+    position: sticky;
+    top: 4.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .client-panel--focused {
+    min-height: calc(100vh - 8.5rem);
+    padding: 1.15rem;
+  }
+}
