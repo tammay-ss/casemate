@@ -7,7 +7,15 @@ const { OAuth2Client } = require("google-auth-library");
 const crypto = require("crypto");
 const auth = require("./middleware/auth");
 const upload = require("./middleware/upload");
-const { getBucket } = require("./config/firebase");
+let gridFSBucket = null;
+function getGridFSBucket() {
+  if (!gridFSBucket && mongoose.connection.readyState === 1 && mongoose.connection.db) {
+    gridFSBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+      bucketName: "documents",
+    });
+  }
+  return gridFSBucket;
+}
 const User = require("./models/User");
 const Client = require("./models/Client");
 const Case = require("./models/Case");
@@ -266,8 +274,16 @@ app.delete("/api/clients/:id", auth, asyncRoute(async (req, res) => {
   const client = await own(Client, req.params.id, req.user.id);
   if (!client) return res.sendStatus(404);
   const cases = await Case.find({ client: client.id, owner: req.user.id });
-  await Event.deleteMany({ case: { $in: cases.map((item) => item.id) }, owner: req.user.id });
-  await Document.deleteMany({ case: { $in: cases.map((item) => item.id) }, owner: req.user.id });
+  const caseIds = cases.map((item) => item.id);
+  await Event.deleteMany({ case: { $in: caseIds }, owner: req.user.id });
+  const docs = await Document.find({ case: { $in: caseIds }, owner: req.user.id });
+  const bucket = getGridFSBucket();
+  if (bucket) {
+    for (const d of docs) {
+      if (d.fileId) await bucket.delete(d.fileId).catch(() => {});
+    }
+  }
+  await Document.deleteMany({ case: { $in: caseIds }, owner: req.user.id });
   await Case.deleteMany({ client: client.id, owner: req.user.id });
   await client.deleteOne();
   res.sendStatus(204);
@@ -293,6 +309,13 @@ app.delete("/api/cases/:id", auth, asyncRoute(async (req, res) => {
   const item = await own(Case, req.params.id, req.user.id);
   if (!item) return res.sendStatus(404);
   await Event.deleteMany({ case: item.id, owner: req.user.id });
+  const docs = await Document.find({ case: item.id, owner: req.user.id });
+  const bucket = getGridFSBucket();
+  if (bucket) {
+    for (const d of docs) {
+      if (d.fileId) await bucket.delete(d.fileId).catch(() => {});
+    }
+  }
   await Document.deleteMany({ case: item.id, owner: req.user.id });
   await item.deleteOne();
   res.sendStatus(204);
@@ -342,33 +365,38 @@ app.get("/api/dashboard", auth, asyncRoute(async (req, res) => {
   res.json({ activeCases, todaysHearings, upcomingMeetings, pendingTasks });
 }));
 
-// ── Documents ──────────────────────────────────────────────────────────────
+// ── Documents (MongoDB GridFS) ─────────────────────────────────────────────
 app.post("/api/cases/:caseId/documents", auth, upload.single("file"), asyncRoute(async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "Please select a supported file (PDF, DOCX, DOC, PNG, or JPEG)." });
+  if (!req.file) {
+    return res.status(400).json({ message: "Please select a supported file (PDF, DOCX, DOC, PNG, or JPEG up to 10 MB)." });
+  }
   if (!await own(Case, req.params.caseId, req.user.id)) return res.sendStatus(404);
-  const bucket = getBucket();
-  if (!bucket) return res.status(503).json({ message: "Document storage is not configured. Please set Firebase environment variables on Render." });
+
+  const bucket = getGridFSBucket();
+  if (!bucket) {
+    return res.status(503).json({ message: "Database document storage is temporarily initializing. Please try again in a moment." });
+  }
 
   // Sanitize filename — strip path separators, limit length
   const safeName = req.file.originalname.replace(/[/\\]/g, "_").slice(0, 200);
-  const storagePath = `cases/${req.params.caseId}/${crypto.randomUUID()}-${safeName}`;
-  const file = bucket.file(storagePath);
 
+  // Stream file buffer directly into MongoDB GridFS
+  let fileId;
   try {
-    await file.save(req.file.buffer, { contentType: req.file.mimetype });
+    const uploadStream = bucket.openUploadStream(safeName, {
+      contentType: req.file.mimetype,
+      metadata: { owner: req.user.id, case: req.params.caseId },
+    });
+    fileId = uploadStream.id;
+
+    await new Promise((resolve, reject) => {
+      uploadStream.on("finish", resolve);
+      uploadStream.on("error", reject);
+      uploadStream.end(req.file.buffer);
+    });
   } catch (storageErr) {
-    console.error("Firebase Storage upload failed:", storageErr.message);
-    return res.status(502).json({ message: "File storage failed. Please try again." });
-  }
-
-  let url;
-  try {
-    [url] = await file.getSignedUrl({ action: "read", expires: "03-01-2500" });
-  } catch (urlErr) {
-    // Metadata can still be saved without a URL — attempt cleanup
-    await file.delete().catch(() => {});
-    console.error("Signed URL generation failed:", urlErr.message);
-    return res.status(502).json({ message: "File was uploaded but a download link could not be generated. Please try again." });
+    console.error("MongoDB GridFS upload failed:", storageErr.message);
+    return res.status(500).json({ message: "File storage in database failed. Please try again." });
   }
 
   try {
@@ -378,13 +406,13 @@ app.post("/api/cases/:caseId/documents", auth, upload.single("file"), asyncRoute
       name: safeName,
       contentType: req.file.mimetype,
       size: req.file.size,
-      storagePath,
-      url,
+      fileId,
+      url: `/api/cases/${req.params.caseId}/documents/${fileId}/download`,
     });
     res.status(201).json(doc);
   } catch (dbErr) {
-    // Metadata write failed — delete the orphaned file
-    await file.delete().catch(() => {});
+    // Metadata write failed — delete the orphaned GridFS chunks
+    if (fileId) await bucket.delete(fileId).catch(() => {});
     console.error("Document metadata write failed:", dbErr.message);
     return res.status(500).json({ message: "File was uploaded but metadata could not be saved. The upload has been rolled back." });
   }
@@ -394,12 +422,34 @@ app.get("/api/cases/:caseId/documents", auth, asyncRoute(async (req, res) =>
   res.json(await Document.find({ case: req.params.caseId, owner: req.user.id }).sort({ createdAt: -1 }))
 ));
 
+app.get("/api/cases/:caseId/documents/:id/download", auth, asyncRoute(async (req, res) => {
+  const doc = await own(Document, req.params.id, req.user.id);
+  if (!doc) return res.sendStatus(404);
+
+  const bucket = getGridFSBucket();
+  if (!bucket) return res.status(503).json({ message: "Database storage unavailable." });
+
+  const fileId = doc.fileId;
+  if (!fileId) return res.status(404).json({ message: "File binary not found." });
+
+  res.setHeader("Content-Type", doc.contentType || "application/octet-stream");
+  const disposition = req.query.download === "true" ? "attachment" : "inline";
+  res.setHeader("Content-Disposition", `${disposition}; filename="${encodeURIComponent(doc.name)}"`);
+
+  const downloadStream = bucket.openDownloadStream(fileId);
+  downloadStream.on("error", (err) => {
+    console.error("GridFS download error:", err.message);
+    if (!res.headersSent) res.status(404).json({ message: "File not found in storage." });
+  });
+  downloadStream.pipe(res);
+}));
+
 app.delete("/api/cases/:caseId/documents/:id", auth, asyncRoute(async (req, res) => {
   const doc = await own(Document, req.params.id, req.user.id);
   if (!doc) return res.sendStatus(404);
-  const bucket = getBucket();
-  if (bucket && doc.storagePath) {
-    await bucket.file(doc.storagePath).delete().catch(() => {});
+  const bucket = getGridFSBucket();
+  if (bucket && doc.fileId) {
+    await bucket.delete(doc.fileId).catch(() => {});
   }
   await doc.deleteOne();
   res.sendStatus(204);

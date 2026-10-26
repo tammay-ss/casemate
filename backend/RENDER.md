@@ -17,10 +17,6 @@ Set these environment variables in the Render dashboard:
 MONGO_URI=<your Atlas connection string>
 JWT_SECRET=<a long random secret>
 CLIENT_ORIGINS=https://your-project.vercel.app
-FIREBASE_PROJECT_ID=<optional, required for document uploads>
-FIREBASE_CLIENT_EMAIL=<optional, required for document uploads>
-FIREBASE_PRIVATE_KEY=<optional, required for document uploads>
-FIREBASE_STORAGE_BUCKET=<optional, required for document uploads>
 GOOGLE_CLIENT_ID=<Google OAuth web client ID>
 ```
 

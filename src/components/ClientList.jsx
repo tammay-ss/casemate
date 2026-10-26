@@ -75,9 +75,10 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [openingId, setOpeningId] = useState(null);
   const inputRef = useRef(null);
 
-  const MAX_MB = 15;
+  const MAX_MB = 10; // Optimized for MongoDB Atlas 512 MB free tier cluster
   const ALLOWED_TYPES = [
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -86,7 +87,7 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
     "image/png",
   ];
   const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".jpeg", ".jpg", ".png"];
-  const ALLOWED_LABEL = "PDF, DOCX, DOC, JPG, or PNG (up to 15 MB)";
+  const ALLOWED_LABEL = "PDF, DOCX, DOC, JPG, or PNG (up to 10 MB)";
 
   const fetchDocs = useCallback(async () => {
     if (!caseId) return;
@@ -121,7 +122,7 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
       return;
     }
     if (selected.size > MAX_MB * 1024 * 1024) {
-      setUploadError(`File is too large (${(selected.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_MB} MB.`);
+      setUploadError(`File is too large (${(selected.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_MB} MB for database storage.`);
       setFile(null);
       e.target.value = "";
       return;
@@ -147,6 +148,36 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
       );
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleOpenDoc = async (doc) => {
+    const docId = doc.id || doc._id;
+    setOpeningId(docId);
+    setUploadError("");
+    try {
+      const res = await api.get(`/cases/${caseId}/documents/${docId}/download`, {
+        responseType: "blob",
+      });
+      const mime = doc.contentType || (doc.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+      const blob = new Blob([res.data], { type: mime });
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (mime === "application/pdf" || mime.startsWith("image/")) {
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = doc.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch {
+      setUploadError("Could not download document. Please try again.");
+    } finally {
+      setOpeningId(null);
     }
   };
 
@@ -191,17 +222,15 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
                     <span className="doc-item-meta">{sizeKb}{sizeKb && dateStr ? " • " : ""}{dateStr}</span>
                   </div>
                   <div className="doc-item-actions">
-                    {doc.url && (
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="doc-action-link"
-                        title={`View ${doc.name}`}
-                      >
-                        Open
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      className="doc-action-link"
+                      onClick={() => handleOpenDoc(doc)}
+                      disabled={openingId === docId}
+                      title={`Open or download ${doc.name}`}
+                    >
+                      {openingId === docId ? "Opening…" : "Open"}
+                    </button>
                     <button
                       type="button"
                       className="doc-delete-btn"

@@ -541,14 +541,22 @@
   font-weight: 500;
   color: var(--accent);
   background: var(--accent-muted);
+  border: none;
   border-radius: var(--radius-sm);
   text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.doc-action-link:hover {
+.doc-action-link:hover:not(:disabled) {
   background: var(--accent);
   color: #fff;
+}
+
+.doc-action-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .doc-delete-btn {

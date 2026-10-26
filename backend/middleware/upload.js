@@ -12,7 +12,7 @@ const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".jpeg", ".jpg", ".png"];
 
 module.exports = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB upload limit for MongoDB Atlas 512 MB free tier
   fileFilter: (_req, file, callback) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const isAllowed = ALLOWED_MIMES.includes(file.mimetype) || ALLOWED_EXTS.includes(ext);
