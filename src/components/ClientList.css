@@ -443,21 +443,140 @@
   border-style: solid;
 }
 
-/* ── Document upload ──────────────────────────────────── */
+/* ── Document upload & list ──────────────────────────── */
 .doc-upload {
-  padding: 0.75rem;
+  padding: 0.85rem;
   background: var(--bg-base);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   display: grid;
-  gap: 0.45rem;
+  gap: 0.6rem;
 }
 
 .doc-upload-label {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.doc-list-section {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.doc-list-heading {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.doc-status-text,
+.doc-empty-text {
+  margin: 0.2rem 0;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.doc-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.doc-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.doc-item-name {
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-item-meta {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.doc-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.doc-action-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.doc-action-link:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.doc-delete-btn {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.doc-delete-btn:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.doc-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.doc-upload-controls {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .doc-upload-input-wrap {
@@ -467,31 +586,36 @@
 .doc-upload-input {
   width: 100%;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-primary);
   cursor: pointer;
 }
 
+.doc-upload-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
 .doc-upload-selected {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--text-secondary);
 }
 
 .doc-upload-error {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--danger);
-  padding: 0.4rem 0.6rem;
+  padding: 0.35rem 0.5rem;
   background: var(--danger-bg);
   border-radius: var(--radius-sm);
 }
 
 .doc-upload-success {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--success);
-  padding: 0.4rem 0.6rem;
+  padding: 0.35rem 0.5rem;
   background: var(--success-bg);
   border-radius: var(--radius-sm);
 }

@@ -1,22 +1,62 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import api from "../api/client";
 import "./ClientList.css";
 
 const EMPTY_CLIENT = { name: "", phone: "", email: "", address: "" };
 const EMPTY_CASE = { title: "", matter: "", caseNumber: "", status: "active", notes: "" };
 
 // ── Validation helpers ──────────────────────────────────────
-const normalizePhone = (v) => v.replace(/\D/g, "");
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const normalizePhone = (v) => (v || "").replace(/\D/g, "");
+export const normalizeEmail = (e) => (e || "").trim().toLowerCase();
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function validateClient(draft) {
+export function validateClient(draft, clients = [], editingId = null) {
   const errors = {};
-  if (!draft.name.trim()) errors.name = "Client name is required.";
-  const digits = normalizePhone(draft.phone);
-  if (!draft.phone.trim()) errors.phone = "Phone number is required.";
-  else if (digits.length !== 10) errors.phone = "Phone number must contain exactly 10 digits.";
-  if (draft.email.trim() && !EMAIL_RE.test(draft.email.trim().toLowerCase())) {
-    errors.email = "Please enter a valid email address (e.g. name@example.com).";
+  const nameTrim = (draft.name || "").trim();
+  if (!nameTrim) {
+    errors.name = "Client name is required.";
   }
+
+  // Phone validation & uniqueness (required field)
+  const rawPhone = (draft.phone || "").trim();
+  if (!rawPhone) {
+    errors.phone = "Phone number is required.";
+  } else if (/[a-zA-Z]/.test(rawPhone)) {
+    errors.phone = "Phone number cannot contain letters.";
+  } else {
+    const digits = normalizePhone(rawPhone);
+    if (digits.length !== 10) {
+      errors.phone = "Phone number must contain exactly 10 digits.";
+    } else {
+      const duplicatePhone = clients.find((c) => {
+        const cId = c.id || c._id;
+        if (editingId && cId === editingId) return false;
+        return normalizePhone(c.phone) === digits;
+      });
+      if (duplicatePhone) {
+        errors.phone = "A client with this phone number already exists.";
+      }
+    }
+  }
+
+  // Email validation & uniqueness (optional field)
+  const emailTrim = (draft.email || "").trim();
+  if (emailTrim) {
+    const emailNorm = normalizeEmail(emailTrim);
+    if (!EMAIL_RE.test(emailNorm)) {
+      errors.email = "Please enter a valid email address (e.g. name@example.com).";
+    } else {
+      const duplicateEmail = clients.find((c) => {
+        const cId = c.id || c._id;
+        if (editingId && cId === editingId) return false;
+        return normalizeEmail(c.emailNormalized || c.email) === emailNorm;
+      });
+      if (duplicateEmail) {
+        errors.email = "A client with this email address already exists.";
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -26,17 +66,44 @@ function validateCase(draft) {
   return errors;
 }
 
-// ── Document upload panel ────────────────────────────────────
-function DocumentUpload({ caseId, onUpload }) {
+// ── Document upload & management panel ───────────────────────
+function DocumentUpload({ caseId, onUpload, onDelete }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const inputRef = useRef(null);
 
   const MAX_MB = 15;
-  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
-  const ALLOWED_EXT = ".pdf, .jpg, .jpeg, .png";
+  const ALLOWED_TYPES = [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
+    "image/jpeg",
+    "image/png",
+  ];
+  const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".jpeg", ".jpg", ".png"];
+  const ALLOWED_LABEL = "PDF, DOCX, DOC, JPG, or PNG (up to 15 MB)";
+
+  const fetchDocs = useCallback(async () => {
+    if (!caseId) return;
+    setLoadingDocs(true);
+    try {
+      const res = await api.get(`/cases/${caseId}/documents`);
+      setDocuments(res.data || []);
+    } catch {
+      // Ignore background fetch error
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, [caseId]);
+
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
 
   const handleFile = (e) => {
     const selected = e.target.files?.[0];
@@ -44,8 +111,11 @@ function DocumentUpload({ caseId, onUpload }) {
     setUploadError("");
     if (!selected) { setFile(null); return; }
 
-    if (!ALLOWED_TYPES.includes(selected.type)) {
-      setUploadError(`Unsupported file type. Please upload: ${ALLOWED_EXT}`);
+    const ext = "." + (selected.name.split(".").pop() || "").toLowerCase();
+    const isAllowed = ALLOWED_TYPES.includes(selected.type) || ALLOWED_EXTS.includes(ext);
+
+    if (!isAllowed) {
+      setUploadError(`Unsupported file type. Please upload: ${ALLOWED_LABEL}`);
       setFile(null);
       e.target.value = "";
       return;
@@ -69,6 +139,7 @@ function DocumentUpload({ caseId, onUpload }) {
       setUploadMsg(`"${file.name}" uploaded successfully.`);
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
+      await fetchDocs();
     } catch (err) {
       setUploadError(
         err?.response?.data?.message ||
@@ -79,48 +150,118 @@ function DocumentUpload({ caseId, onUpload }) {
     }
   };
 
+  const handleDeleteDoc = async (docId, docName) => {
+    if (!window.confirm(`Delete document "${docName}"?\n\nThis action cannot be undone.`)) return;
+    setDeletingId(docId);
+    try {
+      if (onDelete) await onDelete(caseId, docId);
+      else await api.delete(`/cases/${caseId}/documents/${docId}`);
+      setDocuments((prev) => prev.filter((d) => (d.id || d._id) !== docId));
+      setUploadMsg(`"${docName}" deleted.`);
+    } catch {
+      setUploadError("Could not delete document. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="doc-upload">
-      <p className="doc-upload-label">Upload case document</p>
-      <label className="doc-upload-input-wrap">
-        <span className="sr-only">Select a file to upload</span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf,image/png,image/jpeg"
-          className="doc-upload-input"
-          onChange={handleFile}
-          disabled={uploading}
-          aria-describedby={uploadError ? "upload-err" : undefined}
-        />
-      </label>
+      <p className="doc-upload-label">Case documents & attachments</p>
 
-      {file && (
-        <p className="doc-upload-selected">
-          Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
-        </p>
-      )}
+      {/* Existing documents list */}
+      <div className="doc-list-section">
+        <h4 className="doc-list-heading">Uploaded documents ({documents.length})</h4>
+        {loadingDocs ? (
+          <p className="doc-status-text">Loading documents…</p>
+        ) : documents.length === 0 ? (
+          <p className="doc-empty-text">No documents uploaded for this case yet.</p>
+        ) : (
+          <ul className="doc-items-list" aria-label="Case documents">
+            {documents.map((doc) => {
+              const docId = doc.id || doc._id;
+              const sizeKb = doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : "";
+              const dateStr = doc.createdAt
+                ? new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                : "";
+              return (
+                <li key={docId} className="doc-item">
+                  <div className="doc-item-info">
+                    <span className="doc-item-name" title={doc.name}>{doc.name}</span>
+                    <span className="doc-item-meta">{sizeKb}{sizeKb && dateStr ? " • " : ""}{dateStr}</span>
+                  </div>
+                  <div className="doc-item-actions">
+                    {doc.url && (
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="doc-action-link"
+                        title={`View ${doc.name}`}
+                      >
+                        Open
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className="doc-delete-btn"
+                      disabled={deletingId === docId}
+                      onClick={() => handleDeleteDoc(docId, doc.name)}
+                      aria-label={`Delete ${doc.name}`}
+                    >
+                      {deletingId === docId ? "…" : "Delete"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
-      {uploadError && (
-        <p className="doc-upload-error" id="upload-err" role="alert">{uploadError}</p>
-      )}
-      {uploadMsg && (
-        <p className="doc-upload-success" role="status">{uploadMsg}</p>
-      )}
+      {/* Upload new file form */}
+      <div className="doc-upload-controls">
+        <label className="doc-upload-input-wrap">
+          <span className="sr-only">Select a file to upload</span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,image/png,image/jpeg"
+            className="doc-upload-input"
+            onChange={handleFile}
+            disabled={uploading}
+            aria-describedby={uploadError ? "upload-err" : undefined}
+          />
+        </label>
+        <span className="doc-upload-hint">Supported formats: {ALLOWED_LABEL}</span>
 
-      {file && (
-        <button
-          type="button"
-          className="btn-primary doc-upload-btn"
-          onClick={handleUpload}
-          disabled={uploading}
-          aria-busy={uploading}
-        >
-          {uploading ? (
-            <><span className="btn-spinner" aria-hidden="true" /> Uploading…</>
-          ) : "Upload document"}
-        </button>
-      )}
+        {file && (
+          <p className="doc-upload-selected">
+            Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
+          </p>
+        )}
+
+        {uploadError && (
+          <p className="doc-upload-error" id="upload-err" role="alert">{uploadError}</p>
+        )}
+        {uploadMsg && (
+          <p className="doc-upload-success" role="status">{uploadMsg}</p>
+        )}
+
+        {file && (
+          <button
+            type="button"
+            className="btn-primary doc-upload-btn"
+            onClick={handleUpload}
+            disabled={uploading}
+            aria-busy={uploading}
+          >
+            {uploading ? (
+              <><span className="btn-spinner" aria-hidden="true" /> Uploading…</>
+            ) : "Upload document"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -128,7 +269,7 @@ function DocumentUpload({ caseId, onUpload }) {
 // ── Main component ───────────────────────────────────────────
 export default function ClientList({
   clients, cases, onAddClient, onEditClient, onDeleteClient,
-  onAddCase, onEditCase, onUploadDocument, isFocused = false,
+  onAddCase, onEditCase, onUploadDocument, onDeleteDocument, isFocused = false,
 }) {
   const [draft, setDraft] = useState(EMPTY_CLIENT);
   const [clientErrors, setClientErrors] = useState({});
@@ -143,7 +284,7 @@ export default function ClientList({
   // ── Client form ────────────────────────────────────────────
   const submitClient = async (e) => {
     e.preventDefault();
-    const errors = validateClient(draft);
+    const errors = validateClient(draft, clients, editing);
     setClientErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
@@ -185,7 +326,7 @@ export default function ClientList({
 
   // Validate on blur
   const blurClient = (field) => {
-    const errors = validateClient(draft);
+    const errors = validateClient(draft, clients, editing);
     setClientErrors((prev) => ({ ...prev, [field]: errors[field] }));
   };
 
@@ -411,7 +552,7 @@ export default function ClientList({
 
           {/* Document upload — only available when editing an existing case */}
           {caseDraft.id && (
-            <DocumentUpload caseId={caseDraft.id} onUpload={onUploadDocument} />
+            <DocumentUpload caseId={caseDraft.id} onUpload={onUploadDocument} onDelete={onDeleteDocument} />
           )}
 
           <div className="form-actions">

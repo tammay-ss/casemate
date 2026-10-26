@@ -8,7 +8,12 @@ export function ThemeProvider({ children }) {
     const stored = localStorage.getItem("casemate_theme");
     if (stored === "dark" || stored === "light") return stored;
     // 2. OS preference
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    try {
+      if (typeof window !== "undefined" && window.matchMedia) {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+    } catch (_) {}
+    return "light";
   });
 
   // Apply theme to <html> element immediately to prevent flash

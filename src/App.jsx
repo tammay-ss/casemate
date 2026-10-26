@@ -24,12 +24,12 @@ function eventForUi(event) {
   };
 }
 
-export default function App() {
+export default function App({ initialUser = null } = {}) {
   // ── Auth state ────────────────────────────────────────────
   // We initialise user from localStorage token presence so the app can
   // render immediately. A /auth/me verification happens asynchronously.
-  const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [user, setUser] = useState(initialUser);
+  const [authChecked, setAuthChecked] = useState(!!initialUser);
 
   // ── UI state ─────────────────────────────────────────────
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -43,7 +43,7 @@ export default function App() {
 
   // ── Loading/error ────────────────────────────────────────
   const [loading, setLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(!initialUser);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
@@ -63,6 +63,7 @@ export default function App() {
 
   // ── Auth verification on mount ───────────────────────────
   useEffect(() => {
+    if (initialUser) return;
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
       setAuthChecked(true);
@@ -94,13 +95,13 @@ export default function App() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, []); // intentionally only on mount
+  }, [initialUser]);
 
   // ── Data loader ──────────────────────────────────────────
-  const load = useCallback(async (searchValue = "") => {
+  const load = useCallback(async (searchValue = "", isInitial = false) => {
     const controller = new AbortController();
     abortRef.current = controller;
-    setLoading(true);
+    if (isInitial) setLoading(true);
     setError("");
     try {
       const clientResponse = await api.get("/clients", {
@@ -127,7 +128,7 @@ export default function App() {
       setError(msg);
       if (err.response?.status === 401) logout();
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [logout]);
 
@@ -137,7 +138,7 @@ export default function App() {
   // ── Initial data load when authenticated ─────────────────
   useEffect(() => {
     if (authChecked && user) {
-      load(search);
+      load(search, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, user]); // Only re-run when auth status changes
@@ -147,7 +148,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => { load(search); }, 350);
+    searchTimerRef.current = setTimeout(() => { load(search, false); }, 350);
     return () => clearTimeout(searchTimerRef.current);
   }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -155,7 +156,7 @@ export default function App() {
   const mutate = useCallback(async (action) => {
     try {
       const result = await action();
-      await load(search);
+      await load(search, false);
       return result;
     } catch (err) {
       const msg = messageFrom(err);
@@ -173,11 +174,14 @@ export default function App() {
   const onAddCase = useCallback((clientId, item) => mutate(() => api.post(`/clients/${clientId}/cases`, item)), [mutate]);
   const onEditCase = useCallback((id, item) => mutate(() => api.patch(`/cases/${id}`, item)), [mutate]);
 
-  // ── Document upload ──────────────────────────────────────
+  // ── Document mutations ───────────────────────────────────
   const onUploadDocument = useCallback((caseId, file) => {
     const body = new FormData();
     body.append("file", file);
     return mutate(() => api.post(`/cases/${caseId}/documents`, body));
+  }, [mutate]);
+  const onDeleteDocument = useCallback((caseId, docId) => {
+    return mutate(() => api.delete(`/cases/${caseId}/documents/${docId}`));
   }, [mutate]);
 
   // ── Task / event mutations ───────────────────────────────
@@ -288,6 +292,7 @@ export default function App() {
                   onAddCase={onAddCase}
                   onEditCase={onEditCase}
                   onUploadDocument={onUploadDocument}
+                  onDeleteDocument={onDeleteDocument}
                 />
               </div>
             )}
@@ -315,6 +320,7 @@ export default function App() {
                   onAddCase={onAddCase}
                   onEditCase={onEditCase}
                   onUploadDocument={onUploadDocument}
+                  onDeleteDocument={onDeleteDocument}
                   isFocused
                 />
               </div>

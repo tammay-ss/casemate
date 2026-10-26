@@ -125,8 +125,9 @@ app.get("/api/auth/me", auth, asyncRoute(async (req, res) => {
 }));
 
 // ── Clients ────────────────────────────────────────────────────────────────
-// Normalize email helper
+// Helpers
 const normalizeEmail = (e) => (e || "").trim().toLowerCase();
+const normalizePhone = (p) => (p || "").replace(/\D/g, "");
 
 app.get("/api/clients", auth, asyncRoute(async (req, res) => {
   const search = req.query.search?.trim();
@@ -140,28 +141,55 @@ app.post("/api/clients", auth, asyncRoute(async (req, res) => {
 
   // Server-side validation
   if (!name || !name.trim()) return res.status(400).json({ message: "Client name is required.", field: "name" });
-  if (!phone || !/^\d{10}$/.test(phone.trim().replace(/\D/g, ""))) {
+  if (!phone || !phone.trim()) return res.status(400).json({ message: "Phone number is required.", field: "phone" });
+  if (/[a-zA-Z]/.test(phone)) return res.status(400).json({ message: "Phone number cannot contain letters.", field: "phone" });
+
+  const phoneDigits = normalizePhone(phone);
+  if (phoneDigits.length !== 10) {
     return res.status(400).json({ message: "Phone number must contain exactly 10 digits.", field: "phone" });
   }
-  if (email) {
-    const emailNorm = normalizeEmail(email);
+
+  // Phone uniqueness check
+  const existingPhone = await Client.findOne({ owner: req.user.id, phoneNormalized: phoneDigits });
+  if (existingPhone) {
+    return res.status(409).json({ message: "A client with this phone number already exists.", field: "phone" });
+  }
+
+  // Email format & uniqueness check (optional field)
+  let emailNorm = "";
+  if (email && email.trim()) {
+    emailNorm = normalizeEmail(email);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
       return res.status(400).json({ message: "Please enter a valid email address.", field: "email" });
     }
-    // Uniqueness check — race-safe because we store normalized email on the model
-    const existing = await Client.findOne({ owner: req.user.id, emailNormalized: emailNorm });
-    if (existing) return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
+    const existingEmail = await Client.findOne({ owner: req.user.id, emailNormalized: emailNorm });
+    if (existingEmail) {
+      return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
+    }
   }
 
-  const client = await Client.create({
-    owner: req.user.id,
-    name: name.trim(),
-    phone: phone.trim(),
-    email: email ? normalizeEmail(email) : "",
-    emailNormalized: email ? normalizeEmail(email) : "",
-    address: address ? address.trim() : "",
-  });
-  res.status(201).json(client);
+  try {
+    const client = await Client.create({
+      owner: req.user.id,
+      name: name.trim(),
+      phone: phone.trim(),
+      phoneNormalized: phoneDigits,
+      email: email ? email.trim() : "",
+      emailNormalized: emailNorm,
+      address: address ? address.trim() : "",
+    });
+    res.status(201).json(client);
+  } catch (err) {
+    if (err.code === 11000) {
+      if (err.keyPattern?.phoneNormalized || err.message?.includes("phoneNormalized")) {
+        return res.status(409).json({ message: "A client with this phone number already exists.", field: "phone" });
+      }
+      if (err.keyPattern?.emailNormalized || err.message?.includes("emailNormalized")) {
+        return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
+      }
+    }
+    throw err;
+  }
 }));
 
 app.patch("/api/clients/:id", auth, asyncRoute(async (req, res) => {
@@ -170,27 +198,68 @@ app.patch("/api/clients/:id", auth, asyncRoute(async (req, res) => {
 
   const { name, phone, email, address } = req.body;
 
-  if (name !== undefined && !name.trim()) return res.status(400).json({ message: "Client name is required.", field: "name" });
-  if (phone !== undefined && !/^\d{10}$/.test(phone.trim().replace(/\D/g, ""))) {
-    return res.status(400).json({ message: "Phone number must contain exactly 10 digits.", field: "phone" });
-  }
-  if (email !== undefined && email) {
-    const emailNorm = normalizeEmail(email);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
-      return res.status(400).json({ message: "Please enter a valid email address.", field: "email" });
-    }
-    // Exclude this client from the uniqueness check
-    const existing = await Client.findOne({ owner: req.user.id, emailNormalized: emailNorm, _id: { $ne: client._id } });
-    if (existing) return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
-    client.emailNormalized = emailNorm;
+  if (name !== undefined) {
+    if (!name.trim()) return res.status(400).json({ message: "Client name is required.", field: "name" });
+    client.name = name.trim();
   }
 
-  if (name !== undefined) client.name = name.trim();
-  if (phone !== undefined) client.phone = phone.trim();
-  if (email !== undefined) client.email = email ? normalizeEmail(email) : "";
+  if (phone !== undefined) {
+    if (!phone.trim()) return res.status(400).json({ message: "Phone number is required.", field: "phone" });
+    if (/[a-zA-Z]/.test(phone)) return res.status(400).json({ message: "Phone number cannot contain letters.", field: "phone" });
+    const phoneDigits = normalizePhone(phone);
+    if (phoneDigits.length !== 10) {
+      return res.status(400).json({ message: "Phone number must contain exactly 10 digits.", field: "phone" });
+    }
+
+    const existingPhone = await Client.findOne({
+      owner: req.user.id,
+      phoneNormalized: phoneDigits,
+      _id: { $ne: client._id },
+    });
+    if (existingPhone) {
+      return res.status(409).json({ message: "A client with this phone number already exists.", field: "phone" });
+    }
+    client.phone = phone.trim();
+    client.phoneNormalized = phoneDigits;
+  }
+
+  if (email !== undefined) {
+    if (email && email.trim()) {
+      const emailNorm = normalizeEmail(email);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
+        return res.status(400).json({ message: "Please enter a valid email address.", field: "email" });
+      }
+      const existingEmail = await Client.findOne({
+        owner: req.user.id,
+        emailNormalized: emailNorm,
+        _id: { $ne: client._id },
+      });
+      if (existingEmail) {
+        return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
+      }
+      client.email = email.trim();
+      client.emailNormalized = emailNorm;
+    } else {
+      client.email = "";
+      client.emailNormalized = "";
+    }
+  }
+
   if (address !== undefined) client.address = address ? address.trim() : "";
 
-  res.json(await client.save());
+  try {
+    res.json(await client.save());
+  } catch (err) {
+    if (err.code === 11000) {
+      if (err.keyPattern?.phoneNormalized || err.message?.includes("phoneNormalized")) {
+        return res.status(409).json({ message: "A client with this phone number already exists.", field: "phone" });
+      }
+      if (err.keyPattern?.emailNormalized || err.message?.includes("emailNormalized")) {
+        return res.status(409).json({ message: "A client with this email address already exists.", field: "email" });
+      }
+    }
+    throw err;
+  }
 }));
 
 app.delete("/api/clients/:id", auth, asyncRoute(async (req, res) => {
@@ -275,7 +344,7 @@ app.get("/api/dashboard", auth, asyncRoute(async (req, res) => {
 
 // ── Documents ──────────────────────────────────────────────────────────────
 app.post("/api/cases/:caseId/documents", auth, upload.single("file"), asyncRoute(async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "Upload a PDF, PNG, or JPEG file." });
+  if (!req.file) return res.status(400).json({ message: "Please select a supported file (PDF, DOCX, DOC, PNG, or JPEG)." });
   if (!await own(Case, req.params.caseId, req.user.id)) return res.sendStatus(404);
   const bucket = getBucket();
   if (!bucket) return res.status(503).json({ message: "Document storage is not configured. Please set Firebase environment variables on Render." });
@@ -325,7 +394,17 @@ app.get("/api/cases/:caseId/documents", auth, asyncRoute(async (req, res) =>
   res.json(await Document.find({ case: req.params.caseId, owner: req.user.id }).sort({ createdAt: -1 }))
 ));
 
-// ── Error handler ──────────────────────────────────────────────────────────
+app.delete("/api/cases/:caseId/documents/:id", auth, asyncRoute(async (req, res) => {
+  const doc = await own(Document, req.params.id, req.user.id);
+  if (!doc) return res.sendStatus(404);
+  const bucket = getBucket();
+  if (bucket && doc.storagePath) {
+    await bucket.file(doc.storagePath).delete().catch(() => {});
+  }
+  await doc.deleteOne();
+  res.sendStatus(204);
+}));
+
 // ── Error handler ──────────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
   const isDbErr = err.code === "DATABASE_UNAVAILABLE" ||
