@@ -5,8 +5,10 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-layer);
+  transition: background var(--transition-normal), border-color var(--transition-normal);
 }
 
+/* ── Header ─────────────────────────────────────────────── */
 .month-calendar__header {
   display: flex;
   align-items: flex-start;
@@ -16,10 +18,11 @@
 }
 
 .month-calendar__title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.3rem;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.025em;
 }
 
 .month-calendar__subtitle {
@@ -29,36 +32,41 @@
   color: var(--text-secondary);
 }
 
+/* ── Month nav ──────────────────────────────────────────── */
 .month-calendar__nav {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .month-calendar__nav button {
-  padding: 0.38rem 0.55rem;
+  padding: 0.38rem 0.65rem;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--bg-overlay);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .month-calendar__nav button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  border-color: var(--border-medium);
 }
 
+/* ── Calendar grid ──────────────────────────────────────── */
 .month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  gap: 3px;
   margin-bottom: 1.25rem;
 }
 
@@ -72,40 +80,44 @@
   padding: 0.25rem;
   color: var(--text-tertiary);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .month-grid__cell {
   position: relative;
-  min-height: 2.55rem;
+  min-height: 2.6rem;
   padding: 0.45rem;
   background: var(--bg-overlay);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
+  transition: background var(--transition-fast);
 }
 
 .month-grid__cell--muted {
   color: var(--text-tertiary);
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .month-grid__cell--today {
-  border-color: rgba(107, 140, 255, 0.5);
+  border-color: var(--accent);
   background: var(--accent-muted);
+  font-weight: 700;
 }
 
+/* ── Event markers ──────────────────────────────────────── */
 .month-grid__marker {
   position: absolute;
-  right: 0.45rem;
-  bottom: 0.42rem;
+  right: 0.4rem;
+  bottom: 0.4rem;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #5ec9a6;
+  background: var(--success);
 }
 
 .month-grid__marker--hearing {
@@ -113,9 +125,10 @@
 }
 
 .month-grid__marker--hearing.month-grid__marker--meeting {
-  background: linear-gradient(135deg, var(--danger) 50%, #5ec9a6 50%);
+  background: linear-gradient(135deg, var(--danger) 50%, var(--success) 50%);
 }
 
+/* ── List ───────────────────────────────────────────────── */
 .month-calendar__list {
   display: flex;
   flex-direction: column;
@@ -123,9 +136,13 @@
 }
 
 .month-calendar__empty {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  margin: 0.5rem 0 0;
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .month-cal-day__label {
@@ -141,9 +158,10 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
+/* ── Calendar event item ────────────────────────────────── */
 .month-cal-item {
   display: grid;
   grid-template-columns: auto auto 1fr;
@@ -151,35 +169,41 @@
   column-gap: 0.5rem;
   row-gap: 0.15rem;
   align-items: baseline;
-  padding: 0.55rem 0.65rem;
+  padding: 0.55rem 0.7rem;
   background: var(--bg-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.month-cal-item:hover {
+  background: var(--bg-hover);
 }
 
 .month-cal-item__badge {
   grid-row: 1;
   grid-column: 1;
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  padding: 0.15rem 0.35rem;
-  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
 }
 
 .month-cal-item__badge--hearing {
-  background: rgba(232, 93, 93, 0.2);
-  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.14);
+  color: var(--danger);
 }
 
 .month-cal-item__badge--meeting {
-  background: rgba(94, 201, 166, 0.18);
-  color: #047857;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .month-cal-item__badge--task {
-  background: rgba(107, 140, 255, 0.18);
-  color: #1d4ed8;
+  background: var(--accent-muted);
+  color: var(--accent);
 }
 
 .month-cal-item__time {
@@ -197,6 +221,9 @@
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .month-cal-item__client {
@@ -211,8 +238,10 @@
   grid-row: 3;
   font-size: 0.78rem;
   color: var(--text-secondary);
+  font-style: italic;
 }
 
+/* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
   .month-calendar__header {
     flex-direction: column;
@@ -235,31 +264,9 @@
     grid-template-rows: auto auto auto;
   }
 
-  .month-cal-item__badge {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .month-cal-item__time {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
-
-  .month-cal-item__title {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .month-cal-item__note {
-    grid-row: 3;
-  }
-
-  .month-cal-item__client {
-    grid-row: 3;
-  }
-
-  .month-cal-item__note {
-    grid-row: 4;
-  }
+  .month-cal-item__badge { grid-column: 1; grid-row: 1; }
+  .month-cal-item__time { grid-column: 2; grid-row: 1; justify-self: end; }
+  .month-cal-item__title { grid-column: 1 / -1; grid-row: 2; white-space: normal; }
+  .month-cal-item__client { grid-row: 3; }
+  .month-cal-item__note { grid-row: 4; }
 }

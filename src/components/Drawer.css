@@ -17,7 +17,7 @@
   border: none;
   padding: 0;
   margin: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   opacity: 0;
   cursor: pointer;
   transition: opacity var(--transition-drawer);
@@ -32,49 +32,51 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: min(300px, 88vw);
+  width: min(280px, 88vw);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 0.5rem 1rem;
-  background: var(--bg-overlay);
+  background: var(--bg-raised);
   border-right: 1px solid var(--border-subtle);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.28);
   transform: translateX(-100%);
-  transition: transform var(--transition-drawer);
+  transition: transform var(--transition-drawer), background var(--transition-normal),
+    border-color var(--transition-normal);
 }
 
 .drawer-root--open .drawer-panel {
   transform: translateX(0);
 }
 
+/* ── Header ────────────────────────────────────────────── */
 .drawer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.35rem 0.4rem 0.5rem;
+  padding: 0.35rem 0.5rem 0.6rem;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 0.25rem;
 }
 
 .drawer-brand {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: 1rem;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .drawer-close {
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 1.35rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -85,6 +87,7 @@
   color: var(--text-primary);
 }
 
+/* ── Nav ───────────────────────────────────────────────── */
 .drawer-nav {
   display: flex;
   flex-direction: column;
@@ -93,18 +96,21 @@
 }
 
 .drawer-link {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 0.5rem 0.65rem;
+  padding: 0.55rem 0.75rem;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
   font: inherit;
   font-size: 0.95rem;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .drawer-link:hover {
@@ -113,5 +119,6 @@
 
 .drawer-link--active {
   background: var(--accent-muted);
-  border-color: rgba(107, 140, 255, 0.24);
+  border-color: rgba(107, 140, 255, 0.2);
+  color: var(--accent);
 }

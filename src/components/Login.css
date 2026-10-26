@@ -1,6 +1,179 @@
-.login-page { min-height: 100vh; display: grid; place-items: center; padding: 1.25rem; }
-.login-card { width: min(100%, 390px); padding: 2rem; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--bg-raised); display: grid; gap: .8rem; }
-.login-card h1 { margin: 0; }
-.login-card p { margin: 0 0 .5rem; color: var(--text-secondary); }
-.google-signin { min-height: 40px; display: flex; justify-content: center; }
-.form-error { color: #af2727 !important; }
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--bg-base);
+  transition: background var(--transition-normal);
+  position: relative;
+}
+
+.login-card {
+  width: min(100%, 400px);
+  padding: 2.25rem 2rem 1.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-raised);
+  display: grid;
+  gap: 1rem;
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+
+/* ── Brand ─────────────────────────────────────────────── */
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.login-brand-mark {
+  font-size: 1.5rem;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+/* ── Subtitle ──────────────────────────────────────────── */
+.login-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ── Google button container ───────────────────────────── */
+.google-signin {
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Status ────────────────────────────────────────────── */
+.login-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.login-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Server Warming Notice ──────────────────────────────── */
+.login-server-warming {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.login-check-server-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.login-check-server-btn:hover {
+  background: var(--bg-hover);
+}
+
+/* ── Error ──────────────────────────────────────────────── */
+.login-error-container {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.login-error {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.login-retry-btn {
+  justify-self: start;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.login-retry-btn:hover {
+  opacity: 0.9;
+}
+
+/* ── Note / hint ────────────────────────────────────────── */
+.login-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  text-align: center;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.9rem;
+}
+
+/* ── Theme toggle on login ──────────────────────────────── */
+.login-theme-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.login-theme-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
