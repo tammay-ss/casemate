@@ -162,6 +162,9 @@
   background: var(--bg-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   transition: background var(--transition-normal);
 }
 
@@ -451,6 +454,18 @@
   border-radius: var(--radius-md);
   display: grid;
   gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.doc-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .doc-upload-label {
@@ -458,6 +473,22 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-upload-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .doc-list-section {
@@ -466,15 +497,19 @@
   padding: 0.5rem 0;
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-list-heading {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
+  min-width: 0;
 }
 
 .doc-status-text,
@@ -483,6 +518,8 @@
   font-size: 0.76rem;
   color: var(--text-tertiary);
   font-style: italic;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .doc-items-list {
@@ -491,6 +528,9 @@
   padding: 0;
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-item {
@@ -503,6 +543,9 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   font-size: 0.78rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-item-info {
@@ -511,6 +554,7 @@
   gap: 0.1rem;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .doc-item-name {
@@ -519,11 +563,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .doc-item-meta {
   font-size: 0.7rem;
   color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .doc-item-actions {
@@ -546,6 +596,7 @@
   text-decoration: none;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
@@ -568,6 +619,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  white-space: nowrap;
   transition: all var(--transition-fast);
 }
 
@@ -584,52 +636,152 @@
 
 .doc-upload-controls {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-upload-input-wrap {
   display: block;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .doc-upload-input {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font: inherit;
-  font-size: 0.78rem;
-  color: var(--text-primary);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-upload-input::file-selector-button {
+  padding: 0.25rem 0.55rem;
+  margin-right: 0.45rem;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-surface, var(--bg-overlay));
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.doc-upload-input::file-selector-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
 }
 
 .doc-upload-hint {
   font-size: 0.7rem;
   color: var(--text-tertiary);
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .doc-upload-selected {
   margin: 0;
-  font-size: 0.76rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-overlay);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.doc-upload-selected-text {
+  font-size: 0.75rem;
   color: var(--text-secondary);
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-upload-selected-text strong {
+  color: var(--text-primary);
+}
+
+.doc-remove-selected-btn {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.doc-remove-selected-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.doc-upload-pending-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--accent-muted);
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--radius-sm);
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .doc-upload-error {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   color: var(--danger);
   padding: 0.35rem 0.5rem;
   background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .doc-upload-success {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   color: var(--success);
   padding: 0.35rem 0.5rem;
   background: var(--success-bg);
   border-radius: var(--radius-sm);
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .doc-upload-btn {
   width: 100%;
+  margin-top: 0.2rem;
 }
 
 /* ── Responsive ───────────────────────────────────────── */

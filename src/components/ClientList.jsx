@@ -67,8 +67,8 @@ function validateCase(draft) {
 }
 
 // ── Document upload & management panel ───────────────────────
-function DocumentUpload({ caseId, onUpload, onDelete }) {
-  const [file, setFile] = useState(null);
+function DocumentUpload({ caseId, pendingFile, onPendingFileChange, onUpload, onDelete }) {
+  const [file, setFile] = useState(pendingFile || null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [uploadError, setUploadError] = useState("");
@@ -89,8 +89,18 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
   const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".jpeg", ".jpg", ".png"];
   const ALLOWED_LABEL = "PDF, DOCX, DOC, JPG, or PNG (up to 10 MB)";
 
+  // Sync internal file state if pendingFile changes from parent
+  useEffect(() => {
+    if (pendingFile !== undefined) {
+      setFile(pendingFile);
+    }
+  }, [pendingFile]);
+
   const fetchDocs = useCallback(async () => {
-    if (!caseId) return;
+    if (!caseId) {
+      setDocuments([]);
+      return;
+    }
     setLoadingDocs(true);
     try {
       const res = await api.get(`/cases/${caseId}/documents`);
@@ -110,7 +120,11 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
     const selected = e.target.files?.[0];
     setUploadMsg("");
     setUploadError("");
-    if (!selected) { setFile(null); return; }
+    if (!selected) {
+      setFile(null);
+      if (onPendingFileChange) onPendingFileChange(null);
+      return;
+    }
 
     const ext = "." + (selected.name.split(".").pop() || "").toLowerCase();
     const isAllowed = ALLOWED_TYPES.includes(selected.type) || ALLOWED_EXTS.includes(ext);
@@ -118,20 +132,31 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
     if (!isAllowed) {
       setUploadError(`Unsupported file type. Please upload: ${ALLOWED_LABEL}`);
       setFile(null);
+      if (onPendingFileChange) onPendingFileChange(null);
       e.target.value = "";
       return;
     }
     if (selected.size > MAX_MB * 1024 * 1024) {
       setUploadError(`File is too large (${(selected.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_MB} MB for database storage.`);
       setFile(null);
+      if (onPendingFileChange) onPendingFileChange(null);
       e.target.value = "";
       return;
     }
     setFile(selected);
+    if (onPendingFileChange) onPendingFileChange(selected);
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    if (onPendingFileChange) onPendingFileChange(null);
+    if (inputRef.current) inputRef.current.value = "";
+    setUploadError("");
+    setUploadMsg("");
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || !caseId) return;
     setUploading(true);
     setUploadMsg("");
     setUploadError("");
@@ -139,6 +164,7 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
       await onUpload(caseId, file);
       setUploadMsg(`"${file.name}" uploaded successfully.`);
       setFile(null);
+      if (onPendingFileChange) onPendingFileChange(null);
       if (inputRef.current) inputRef.current.value = "";
       await fetchDocs();
     } catch (err) {
@@ -197,61 +223,68 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
   };
 
   return (
-    <div className="doc-upload">
-      <p className="doc-upload-label">Case documents & attachments</p>
-
-      {/* Existing documents list */}
-      <div className="doc-list-section">
-        <h4 className="doc-list-heading">Uploaded documents ({documents.length})</h4>
-        {loadingDocs ? (
-          <p className="doc-status-text">Loading documents…</p>
-        ) : documents.length === 0 ? (
-          <p className="doc-empty-text">No documents uploaded for this case yet.</p>
-        ) : (
-          <ul className="doc-items-list" aria-label="Case documents">
-            {documents.map((doc) => {
-              const docId = doc.id || doc._id;
-              const sizeKb = doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : "";
-              const dateStr = doc.createdAt
-                ? new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                : "";
-              return (
-                <li key={docId} className="doc-item">
-                  <div className="doc-item-info">
-                    <span className="doc-item-name" title={doc.name}>{doc.name}</span>
-                    <span className="doc-item-meta">{sizeKb}{sizeKb && dateStr ? " • " : ""}{dateStr}</span>
-                  </div>
-                  <div className="doc-item-actions">
-                    <button
-                      type="button"
-                      className="doc-action-link"
-                      onClick={() => handleOpenDoc(doc)}
-                      disabled={openingId === docId}
-                      title={`Open or download ${doc.name}`}
-                    >
-                      {openingId === docId ? "Opening…" : "Open"}
-                    </button>
-                    <button
-                      type="button"
-                      className="doc-delete-btn"
-                      disabled={deletingId === docId}
-                      onClick={() => handleDeleteDoc(docId, doc.name)}
-                      aria-label={`Delete ${doc.name}`}
-                    >
-                      {deletingId === docId ? "…" : "Delete"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+    <div className="doc-upload" aria-label="Case documents and attachments">
+      <div className="doc-upload-header">
+        <p className="doc-upload-label">Case documents & attachments</p>
+        {!caseId && (
+          <span className="doc-upload-badge">New case</span>
         )}
       </div>
 
-      {/* Upload new file form */}
+      {/* Existing documents list (when editing an existing case) */}
+      {caseId && (
+        <div className="doc-list-section">
+          <h4 className="doc-list-heading">Uploaded documents ({documents.length})</h4>
+          {loadingDocs ? (
+            <p className="doc-status-text">Loading documents…</p>
+          ) : documents.length === 0 ? (
+            <p className="doc-empty-text">No documents uploaded for this case yet.</p>
+          ) : (
+            <ul className="doc-items-list" aria-label="Case documents">
+              {documents.map((doc) => {
+                const docId = doc.id || doc._id;
+                const sizeKb = doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : "";
+                const dateStr = doc.createdAt
+                  ? new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                  : "";
+                return (
+                  <li key={docId} className="doc-item">
+                    <div className="doc-item-info">
+                      <span className="doc-item-name" title={doc.name}>{doc.name}</span>
+                      <span className="doc-item-meta">{sizeKb}{sizeKb && dateStr ? " • " : ""}{dateStr}</span>
+                    </div>
+                    <div className="doc-item-actions">
+                      <button
+                        type="button"
+                        className="doc-action-link"
+                        onClick={() => handleOpenDoc(doc)}
+                        disabled={openingId === docId}
+                        title={`Open or download ${doc.name}`}
+                      >
+                        {openingId === docId ? "Opening…" : "Open"}
+                      </button>
+                      <button
+                        type="button"
+                        className="doc-delete-btn"
+                        disabled={deletingId === docId}
+                        onClick={() => handleDeleteDoc(docId, doc.name)}
+                        aria-label={`Delete ${doc.name}`}
+                      >
+                        {deletingId === docId ? "…" : "Delete"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Upload / Attach file controls */}
       <div className="doc-upload-controls">
         <label className="doc-upload-input-wrap">
-          <span className="sr-only">Select a file to upload</span>
+          <span className="sr-only">Select a file to attach or upload</span>
           <input
             ref={inputRef}
             type="file"
@@ -265,8 +298,24 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
         <span className="doc-upload-hint">Supported formats: {ALLOWED_LABEL}</span>
 
         {file && (
-          <p className="doc-upload-selected">
-            Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
+          <div className="doc-upload-selected">
+            <span className="doc-upload-selected-text">
+              Selected: <strong title={file.name}>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
+            </span>
+            <button
+              type="button"
+              className="doc-remove-selected-btn"
+              onClick={handleRemoveFile}
+              title="Remove selected file"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
+        {!caseId && file && (
+          <p className="doc-upload-pending-note">
+            This document will be saved and attached when you save this case.
           </p>
         )}
 
@@ -277,7 +326,7 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
           <p className="doc-upload-success" role="status">{uploadMsg}</p>
         )}
 
-        {file && (
+        {file && caseId && (
           <button
             type="button"
             className="btn-primary doc-upload-btn"
@@ -287,7 +336,7 @@ function DocumentUpload({ caseId, onUpload, onDelete }) {
           >
             {uploading ? (
               <><span className="btn-spinner" aria-hidden="true" /> Uploading…</>
-            ) : "Upload document"}
+            ) : "Upload document now"}
           </button>
         )}
       </div>
@@ -306,6 +355,7 @@ export default function ClientList({
   const [showForm, setShowForm] = useState(false);
   const [caseClient, setCaseClient] = useState(null);
   const [caseDraft, setCaseDraft] = useState(EMPTY_CASE);
+  const [casePendingFile, setCasePendingFile] = useState(null);
   const [caseErrors, setCaseErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [clientMsg, setClientMsg] = useState("");
@@ -368,11 +418,45 @@ export default function ClientList({
 
     setSaving(true);
     try {
-      if (caseDraft.id) await onEditCase(caseDraft.id, caseDraft);
-      else await onAddCase(caseClient, caseDraft);
-      setCaseClient(null);
-      setCaseDraft(EMPTY_CASE);
-      setCaseErrors({});
+      if (caseDraft.id) {
+        // Editing an existing case
+        await onEditCase(caseDraft.id, caseDraft);
+        if (casePendingFile) {
+          await onUploadDocument(caseDraft.id, casePendingFile);
+        }
+        setCaseClient(null);
+        setCaseDraft(EMPTY_CASE);
+        setCasePendingFile(null);
+        setCaseErrors({});
+      } else {
+        // Adding a new case
+        const res = await onAddCase(caseClient, caseDraft);
+        const createdCase = res?.data;
+        const newCaseId = createdCase?.id || createdCase?._id;
+
+        if (casePendingFile && newCaseId) {
+          try {
+            await onUploadDocument(newCaseId, casePendingFile);
+          } catch (uploadErr) {
+            // Case saved, but file upload failed. Retain form in edit mode with new ID so no duplicate is created on retry.
+            setCaseDraft((prev) => ({
+              ...prev,
+              id: newCaseId,
+              _id: newCaseId,
+            }));
+            const uploadErrMsg =
+              uploadErr?.response?.data?.message ||
+              "Case details were saved, but document upload failed. Please try re-uploading the document below.";
+            setCaseErrors({ _form: uploadErrMsg });
+            return;
+          }
+        }
+
+        setCaseClient(null);
+        setCaseDraft(EMPTY_CASE);
+        setCasePendingFile(null);
+        setCaseErrors({});
+      }
     } catch (err) {
       const serverMsg = err?.response?.data?.message || "Could not save case. Please try again.";
       const field = err?.response?.data?.field;
@@ -386,6 +470,7 @@ export default function ClientList({
   const cancelCase = () => {
     setCaseClient(null);
     setCaseDraft(EMPTY_CASE);
+    setCasePendingFile(null);
     setCaseErrors({});
   };
 
@@ -579,10 +664,14 @@ export default function ClientList({
             />
           </div>
 
-          {/* Document upload — only available when editing an existing case */}
-          {caseDraft.id && (
-            <DocumentUpload caseId={caseDraft.id} onUpload={onUploadDocument} onDelete={onDeleteDocument} />
-          )}
+          {/* Document upload & attachment panel (available in both Add Case & Edit Case) */}
+          <DocumentUpload
+            caseId={caseDraft.id || null}
+            pendingFile={casePendingFile}
+            onPendingFileChange={setCasePendingFile}
+            onUpload={onUploadDocument}
+            onDelete={onDeleteDocument}
+          />
 
           <div className="form-actions">
             <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
@@ -650,7 +739,7 @@ export default function ClientList({
                     <button
                       type="button"
                       className="btn-row-action"
-                      onClick={() => { setCaseClient(clientId); setCaseDraft({ ...item }); }}
+                      onClick={() => { setCaseClient(clientId); setCaseDraft({ ...item }); setCasePendingFile(null); setCaseErrors({}); }}
                       aria-label={`Edit case: ${item.title}`}
                     >
                       Edit case
@@ -660,7 +749,7 @@ export default function ClientList({
                 <button
                   type="button"
                   className="btn-add-case"
-                  onClick={() => { setCaseClient(clientId); setCaseDraft(EMPTY_CASE); }}
+                  onClick={() => { setCaseClient(clientId); setCaseDraft(EMPTY_CASE); setCasePendingFile(null); setCaseErrors({}); }}
                 >
                   + Add case
                 </button>
